@@ -46,24 +46,62 @@ const fmtMes = (ym) => {
   return `${meses[m-1]}'${y}`;
 };
 
+const BROWSER_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "es-ES,es;q=0.9,en;q=0.6",
+  "Referer": "https://catalogo.datosabiertos.miteco.gob.es/",
+};
+
+async function fetchWithRetry(url, opts={}, tries=3) {
+  let lastErr;
+  for (let i=0; i<tries; i++) {
+    try {
+      const r = await fetch(url, { headers: BROWSER_HEADERS, ...opts });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r;
+    } catch (e) {
+      lastErr = e;
+      if (i < tries-1) await new Promise(res => setTimeout(res, 2000 * (i+1)));
+    }
+  }
+  throw lastErr;
+}
+
 async function main() {
-  console.log("→ Resolviendo URL del CSV vía datos.gob.es...");
-  const metaRes = await fetch(META_URL);
-  if (!metaRes.ok) throw new Error(`metadata HTTP ${metaRes.status}`);
-  const meta = await metaRes.json();
-  const items = meta?.result?.items || [];
-  if (!items.length) throw new Error("metadata vacía");
-  const csvUrl = items[0].accessURL;
-  console.log("  CSV:", csvUrl);
+  let csv, csvUrl, source;
 
-  console.log("→ Descargando CSV...");
-  const csvRes = await fetch(csvUrl);
-  if (!csvRes.ok) throw new Error(`csv HTTP ${csvRes.status}`);
-  const csv = await csvRes.text();
-  console.log(`  ${(csv.length/1024).toFixed(1)} KB`);
+  try {
+    console.log("→ Resolviendo URL del CSV vía datos.gob.es...");
+    const meta = await (await fetchWithRetry(META_URL)).json();
+    const items = meta?.result?.items || [];
+    if (!items.length) throw new Error("metadata vacía");
+    csvUrl = items[0].accessURL;
+    console.log("  CSV:", csvUrl);
+  } catch (e) {
+    console.warn(`⚠ Metadata datos.gob.es falló (${e.message}).`);
+  }
 
-  // Snapshot del nombre del fichero (yyyymmdd al inicio)
-  const m = /(\d{4})(\d{2})(\d{2})-/.exec(csvUrl);
+  if (csvUrl) {
+    try {
+      console.log("→ Descargando CSV (con retries)...");
+      csv = await (await fetchWithRetry(csvUrl)).text();
+      console.log(`  ${(csv.length/1024).toFixed(1)} KB · remoto OK`);
+      source = "remote";
+    } catch (e) {
+      console.warn(`⚠ CSV remoto falló (${e.message}). Cayendo al CSV bundled.`);
+    }
+  }
+
+  if (!csv) {
+    const fallback = path.resolve(__dirname, "..", "uploads", "miteco-cae.csv");
+    csv = await fs.readFile(fallback, "utf8");
+    console.log(`  ${(csv.length/1024).toFixed(1)} KB · fallback local`);
+    source = "fallback-local";
+  }
+
+  // Snapshot del nombre del fichero (yyyymmdd al inicio); si no hay URL, usa hoy
+  const m = csvUrl ? /(\d{4})(\d{2})(\d{2})-/.exec(csvUrl) : null;
   const snapshot = m ? `${m[1]}-${m[2]}-${m[3]}` : new Date().toISOString().slice(0,10);
 
   console.log("→ Parseando filas...");
@@ -140,7 +178,8 @@ async function main() {
       snapshot,
       total_filas: rows.length,
       generado: new Date().toISOString(),
-      origen_csv: csvUrl,
+      origen_csv: csvUrl || "uploads/miteco-cae.csv (bundled)",
+      source,
     },
     kpis: {
       total_gwh_solicitado: Math.round(totalGWh*10)/10,
