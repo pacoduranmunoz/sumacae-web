@@ -1,0 +1,13 @@
+# Ignorar artefactos del editor / sandbox
+.DS_Store
+node_modules/
+*.log
+
+# Borradores no canónicos
+SUMACAE Rediseño.html
+SUMACAE v2.html
+SUMACAE v3.html
+SUMACAE v4.html
+
+# Capturas internas
+screens/

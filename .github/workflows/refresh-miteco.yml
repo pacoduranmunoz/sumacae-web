@@ -1,0 +1,36 @@
+name: Refresh MITECO data
+# Descarga el CSV mensual del MITECO y regenera miteco-data.json automáticamente
+
+on:
+  schedule:
+    # Día 5 de cada mes a las 06:00 UTC (07:00 CET) — el MITECO suele publicar a finales del mes anterior
+    - cron: '0 6 5 * *'
+  workflow_dispatch: # Permite lanzarlo manualmente desde la pestaña Actions
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch & process MITECO CSV
+        run: node scripts/fetch-miteco.js
+
+      - name: Commit if changed
+        run: |
+          if [[ -n "$(git status --porcelain miteco-data.json)" ]]; then
+            git config user.name  "miteco-bot"
+            git config user.email "miteco-bot@users.noreply.github.com"
+            git add miteco-data.json
+            git commit -m "chore(data): refresh MITECO snapshot $(date -u +%Y-%m-%d)"
+            git push
+            echo "✓ miteco-data.json actualizado y pusheado"
+          else
+            echo "Sin cambios"
+          fi
