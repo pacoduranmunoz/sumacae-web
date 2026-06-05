@@ -2,10 +2,10 @@
   "meta": {
     "fuente": "MITECO · Sistema Nacional CAE",
     "dataset": "7709f44a-9b05-4bb4-bcb0-982f94eb742e",
-    "snapshot": "2025-11-30",
+    "snapshot": "2025-12-31",
     "total_filas": 15897,
-    "generado": "2026-05-05T11:06:14.911Z",
-    "origen_csv": "https://catalogo.datosabiertos.miteco.gob.es/catalogo/dataset/7709f44a-9b05-4bb4-bcb0-982f94eb742e/resource/135a457a-b14a-4d96-814b-477a90cdeb6b/download/20251130-sistema_de_cae.csv",
+    "generado": "2026-06-05T16:14:50.088Z",
+    "origen_csv": "https://catalogo.datosabiertos.miteco.gob.es/catalogo/dataset/7709f44a-9b05-4bb4-bcb0-982f94eb742e/resource/d26f6ca4-1928-4fbe-bdf8-6cc09ce0729b/download/20251231-sistema_de_cae.csv",
     "source": "fallback-local"
   },
   "kpis": {
